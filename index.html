@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login Cinta Kita 💖</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #ece5dd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+    .box {
+      background: #fff;
+      padding: 30px;
+      border-radius: 14px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      display: none;
+      opacity: 0;
+      transform: scale(0.9);
+      transition: all 0.3s ease;
+    }
+    .box.active {
+      display: block;
+      opacity: 1;
+      transform: scale(1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #075e54;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #075e54;
+      color: #fff;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0a6d63;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nama -->
+  <div class="box" id="nameBox">
+    <h2>Masukkan Namamu 💌</h2>
+    <input type="text" id="inputName" placeholder="Nama kamu..."/>
+    <button id="submitName">Lanjut</button>
+  </div>
+
+  <!-- Kuis -->
+  <div class="box" id="quizBox">
+    <h2>💖 Sebelum Masuk...</h2>
+    <p id="quizQuestion" style="text-align:center; font-size:15px;">Loading pertanyaan...</p>
+    <div class="error" id="quizError"></div>
+    <input type="text" id="quizAnswer" placeholder="Jawabanmu di sini..."/>
+    <button id="quizButton">Lanjut</button>
+  </div>
+
+  <!-- Login -->
+  <div class="box" id="loginBox">
+    <h2>Login Chat Khusus</h2>
+    <div class="error" id="errorBox"></div>
+    <input type="text" id="username" placeholder="Username" required/>
+    <input type="password" id="password" placeholder="Password" required/>
+    <button id="authButton">Masuk</button>
+  </div>
+
+<script>
+  const supabase = window.supabase.createClient(
+    "https://mnmzshldfeqbvncxrjoj.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ubXpzaGxkZmVxYnZuY3hyam9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4NjI0NDYsImV4cCI6MjA2NzQzODQ0Nn0.o0enC-0TGCNc-vRvAU5kfWFsaNeeMoeiQEMLW_NdORI"
+  );
+
+  const quizzes = [
+    { q: "Kapan tanggal spesial kita?", a: "03-04-2025" },
+    { q: "Apa panggilan spesial kita?", a: "Weeh" },
+    { q: "Siapa yang paling kamu cintai?", a: ["KHALID", "NADIN"] }
+  ];
+
+  const users = {
+    "khalid": "03042025",
+    "nadin": "03042025"
+  };
+
+  let selectedQuiz, attemptCount = 0, maxAttempts = 3;
+
+  function showOnly(id) {
+    ["nameBox", "quizBox", "loginBox"].forEach(boxId => {
+      const box = document.getElementById(boxId);
+      if (boxId === id) {
+        box.classList.add("active");
+      } else {
+        box.classList.remove("active");
+      }
+    });
+  }
+
+  function pickQuiz() {
+    selectedQuiz = quizzes[Math.floor(Math.random() * quizzes.length)];
+    document.getElementById("quizQuestion").textContent = selectedQuiz.q;
+    document.getElementById("quizAnswer").value = "";
+    document.getElementById("quizError").textContent = "";
+    attemptCount = 0;
+  }
+
+  async function logQuizAnswer(answer, result) {
+    const name = localStorage.getItem("senderName") || "-";
+    try {
+      await supabase.from("quiz_logs").insert([{
+        question: selectedQuiz.q,
+        answer: answer,
+        result: result,
+        timestamp: new Date().toISOString(),
+        name: name
+      }]);
+    } catch (err) {
+      console.error("Log error:", err.message);
+    }
+  }
+
+  async function checkQuiz() {
+    const userAnswer = document.getElementById("quizAnswer").value.trim().toLowerCase();
+    let correct = false;
+
+    if (Array.isArray(selectedQuiz.a)) {
+      correct = selectedQuiz.a.map(a => a.toLowerCase()).includes(userAnswer);
+    } else {
+      correct = userAnswer === selectedQuiz.a.toLowerCase();
+    }
+
+    await logQuizAnswer(userAnswer, correct ? "benar" : "salah");
+
+    if (correct) {
+      localStorage.setItem("quizPassed", "true");
+      showOnly("loginBox");
+    } else {
+      attemptCount++;
+      const quizError = document.getElementById("quizError");
+      if (attemptCount >= maxAttempts) {
+        quizError.textContent = "💔 Terlalu banyak salah 😭";
+        document.getElementById("quizAnswer").disabled = true;
+      } else {
+        quizError.textContent = `Salah jawaban (${attemptCount}/${maxAttempts})`;
+      }
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const loggedIn = localStorage.getItem("loggedIn");
+    const senderName = localStorage.getItem("senderName");
+    const quizPassed = localStorage.getItem("quizPassed");
+
+    if (loggedIn) {
+      location.href = "chat.html";
+    } else if (!senderName) {
+      showOnly("nameBox");
+    } else if (!quizPassed) {
+      showOnly("quizBox");
+      pickQuiz();
+    } else {
+      showOnly("loginBox");
+    }
+
+    document.getElementById("submitName").addEventListener("click", () => {
+      const name = document.getElementById("inputName").value.trim();
+      if (name) {
+        localStorage.setItem("senderName", name);
+        showOnly("quizBox");
+        pickQuiz();
+      }
+    });
+
+    document.getElementById("quizButton").addEventListener("click", checkQuiz);
+
+    document.getElementById("authButton").addEventListener("click", () => {
+      const senderName = localStorage.getItem("senderName");
+      const quizPassed = localStorage.getItem("quizPassed");
+      if (!senderName || !quizPassed) {
+        alert("Harus isi nama & lulus kuis dulu!");
+        return;
+      }
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value;
+      const errorBox = document.getElementById("errorBox");
+      errorBox.textContent = "";
+
+      if (!user || !pass) {
+        errorBox.textContent = "Username dan password wajib.";
+        return;
+      }
+      if (!users[user] || users[user] !== pass) {
+        errorBox.textContent = "Username atau password salah.";
+        return;
+      }
+      localStorage.setItem("loggedIn", "true");
+      window.location.href = "chat.html";
+    });
+  });
+
+  // Clear localStorage saat tutup halaman SELAIN pindah ke chat.html
+  window.addEventListener("hidden", (e) => {
+    if (!window.location.href.includes("chat.html")) {
+      localStorage.clear();
+    }
+  });
+
+  // Enter key buat submit
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      if (document.getElementById("nameBox").classList.contains("active")) {
+        document.getElementById("submitName").click();
+      } else if (document.getElementById("quizBox").classList.contains("active")) {
+        document.getElementById("quizButton").click();
+      } else if (document.getElementById("loginBox").classList.contains("active")) {
+        document.getElementById("authButton").click();
+      }
+    }
+  });
+</script>
+</body>
+</html>
